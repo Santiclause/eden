@@ -1,0 +1,17 @@
+1: IRC bot
+    1) Current functionality
+    2) IRC<->Discord bridge
+    3) Port to Discord as well *keep this in mind when doing #1.1*
+	4) dynamic lua hooks with https://github.com/Shopify/go-lua? sounds AWESOME
+2: Website
+    1) Current static pages
+    2) User creation and login
+    3) Favourites
+    4) Admin panel
+    5) Song upload
+3: mpdwatch //obviated by #2.5?
+X: nginx reverse proxy
+    1) The website
+    2) The stream
+Y: move song metadata to database //do this before #2.5?
+Z: implement icecast in golang to have full control over streaming (!!!!!)
