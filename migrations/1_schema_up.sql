@@ -13,12 +13,26 @@ CREATE TABLE IF NOT EXISTS permissions (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
     `name` varchar(60) NOT NULL
 );
+CREATE TABLE IF NOT EXISTS userRoles (
+    `user` bigint NOT NULL,
+    `role` bigint NOT NULL,
+    PRIMARY KEY (user, role),
+    FOREIGN KEY (user) REFERENCES users(id),
+    FOREIGN KEY (role) REFERENCES roles(id)
+);
 CREATE TABLE IF NOT EXISTS rolePermissions (
     `role` bigint NOT NULL,
     `permission` bigint NOT NULL,
     PRIMARY KEY (role, permission),
     FOREIGN KEY (role) REFERENCES roles(id),
     FOREIGN KEY (permission) REFERENCES permissions(id)
+);
+CREATE TABLE IF NOT EXISTS ircUsers (
+    `id` bigint PRIMARY KEY AUTO_INCREMENT,
+    `user` bigint NOT NULL,
+    `nickname` varchar(60) NOT NULL,
+    FOREIGN KEY (`user`) REFERENCES users(id),
+    UNIQUE KEY (`nickname`)
 );
 CREATE TABLE IF NOT EXISTS songs (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
