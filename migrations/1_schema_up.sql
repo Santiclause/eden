@@ -19,21 +19,21 @@ CREATE TABLE IF NOT EXISTS user_roles (
     `user_id` bigint NOT NULL,
     `role_id` bigint NOT NULL,
     PRIMARY KEY (user_id, role_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (role_id) REFERENCES roles(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS role_permissions (
     `role_id` bigint NOT NULL,
     `permission_id` bigint NOT NULL,
     PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS ircUsers (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
     `user_id` bigint NOT NULL,
     `nickname` varchar(60) NOT NULL,
-    FOREIGN KEY (`user_id`) REFERENCES users(id),
+    FOREIGN KEY (`user_id`) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE KEY (`nickname`)
 );
 CREATE TABLE IF NOT EXISTS artists (
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS faves (
     `user_id` bigint NOT NULL,
     `song_id` bigint NOT NULL,
     PRIMARY KEY (`user_id`, `song_id`),
-    FOREIGN KEY (`user_id`) REFERENCES users(id),
+    FOREIGN KEY (`user_id`) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (`song_id`) REFERENCES songs(id)
 );
 CREATE TABLE IF NOT EXISTS playHistory (
