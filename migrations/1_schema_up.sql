@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     `username` varchar(60) NOT NULL,
     `password` CHAR(60) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
 	`created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	`updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP UPDATE CURRENT_TIMESTAMP
+	`updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS roles (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
@@ -36,18 +36,18 @@ CREATE TABLE IF NOT EXISTS ircUsers (
     FOREIGN KEY (`user_id`) REFERENCES users(id),
     UNIQUE KEY (`nickname`)
 );
+CREATE TABLE IF NOT EXISTS artists (
+    `id` bigint PRIMARY KEY AUTO_INCREMENT,
+    `name` varchar(191) NOT NULL,
+    UNIQUE KEY (name)
+);
 CREATE TABLE IF NOT EXISTS songs (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
-    `filename` varchar(512),
-    `title` varchar(255) NOT NULL,
+    `filename` varchar(191),
+    `title` varchar(191) NOT NULL,
     `artist_id` bigint NOT NULL,
     -- some other shit here
     FOREIGN KEY (artist_id) REFERENCES artists(id)
-);
-CREATE TABLE IF NOT EXISTS artists (
-    `id` bigint PRIMARY KEY AUTO_INCREMENT,
-    `name` varchar(255) NOT NULL,
-    UNIQUE KEY (name)
 );
 CREATE TABLE IF NOT EXISTS faves (
     `user_id` bigint NOT NULL,
@@ -62,6 +62,6 @@ CREATE TABLE IF NOT EXISTS playHistory (
 	`dj` bigint NOT NULL,
     `played` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY (`played`),
-    FOREIGN KEY (`song_id`) REFERENCES songs(id)
-	FOREIGN KEY (`dj`) reference users(id)
+    FOREIGN KEY (`song_id`) REFERENCES songs(id),
+	FOREIGN KEY (`dj`) REFERENCES users(id)
 );
