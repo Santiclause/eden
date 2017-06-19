@@ -63,10 +63,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var users []models.User
-	err = db.Find(&users).Error
+	db.LogMode(true)
+	var permissions []models.Permission
+	err = db.Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id JOIN user_roles USING (role_id)").Find(&permissions, "user_id = 1").Error
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Wow! %v\n", users)
+	fmt.Printf("%v\n", permissions)
+	// var users []models.User
+	// err = db.Find(&users).Error
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// for i, user := range users {
+	// 	var roles []models.Role
+	// 	// err := db.Model(&user).Related(&roles, "Roles").Error
+	// 	err := db.Model(&user).Association("Roles").Find(&roles).Error
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	fmt.Printf("%d: %v\n", i, roles)
+	// }
 }
