@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS roles (
 );
 CREATE TABLE IF NOT EXISTS permissions (
     `id` bigint PRIMARY KEY AUTO_INCREMENT,
-    `name` varchar(60) NOT NULL
+    `name` varchar(60) NOT NULL,
+    UNIQUE KEY (`name`)
 );
 CREATE TABLE IF NOT EXISTS user_roles (
     `user_id` bigint NOT NULL,

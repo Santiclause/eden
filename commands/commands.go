@@ -3,6 +3,8 @@ package commands
 import (
 	"strings"
 	"unicode"
+
+	"github.com/santiclause/eden/models"
 )
 
 var (
@@ -17,7 +19,7 @@ type Command struct {
 	function          ExecuteFunc
 	minArgs           int
 	maxArgs           int
-	permission        *Permission
+	permission        *models.Permission
 	prefix            string
 }
 
@@ -139,8 +141,6 @@ type User struct {
 	DisplayName string
 }
 
-type Permission string
-
 func WithArgs(numArgs int) commandOption {
 	return func(c *Command) error {
 		c.minArgs = numArgs
@@ -164,7 +164,7 @@ func WithAllowNoWhitespace() commandOption {
 	}
 }
 
-func WithPermissionCheck(permission Permission) commandOption {
+func WithPermissionCheck(permission models.Permission) commandOption {
 	return func(c *Command) error {
 		c.permission = &permission
 		return nil
@@ -187,5 +187,5 @@ func WithCommandFunc(commandFunc func(Message) string) commandOption {
 
 type CommandContext interface {
 	Execute(ExecuteFunc, Message, []string)
-	Authorize(User, Permission) bool
+	Authorize(User, models.Permission) bool
 }

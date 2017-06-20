@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -29,10 +28,5 @@ type Permission struct {
 }
 
 func (user *User) GetPermissions(db *gorm.DB) error {
-	return db.Joins(`
-	JOIN role_permissions
-		ON permissions.id = role_permissions.permission_id
-	JOIN user_roles
-		USING (role_id)
-	`).Find(&user.Permissions, fmt.Sprintf("user_id = %d", user.ID)).Error
+	return db.Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").Joins("JOIN user_roles USING (role_id)").Where("user_id = ?", user.ID).Find(&user.Permissions).Error
 }
