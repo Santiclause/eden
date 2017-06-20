@@ -64,12 +64,13 @@ func main() {
 		log.Fatal(err)
 	}
 	db.LogMode(true)
-	var permissions []models.Permission
-	err = db.Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id JOIN user_roles USING (role_id)").Find(&permissions, "user_id = 1").Error
+	var user models.User
+	err = db.First(&user).Error
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%v\n", permissions)
+	err = user.GetPermissions(db)
+	fmt.Printf("%v\n", user.Permissions)
 	// var users []models.User
 	// err = db.Find(&users).Error
 	// if err != nil {
