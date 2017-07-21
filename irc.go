@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"regexp"
 	"sync"
+	"time"
 
 	irc "github.com/fluffle/goirc/client"
 	"github.com/santiclause/eden/commands"
@@ -106,12 +109,39 @@ func (c *IrcConn) Execute(f commands.ExecuteFunc, message commands.Message, args
 
 func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission) bool {
 	user, ok := c.users.get(userInfo.Name)
+
+	// Cache miss, we don't have any information about this user
 	if !ok {
-		//TODO query nickserv here
-		// c.conn.Privmsgf("NickServ", "STATUS %s", userInfo.Name)
-		// channel with timeout, etc
-		return false
+		timeout := time.After(config.IrcNickservTimeout)
+		wait := make(chan bool, 1)
+		remover := c.conn.HandleFunc(irc.PRIVMSG, func(conn *irc.Conn, line *irc.Line) {
+			if line.Nick == "NickServ" && !line.Public() {
+				if ok, _ := regexp.MatchString(fmt.Sprintf("^STATUS %s \\d$", regexp.QuoteMeta(userInfo.Name)), line.Text()); ok {
+					if strings.HasSuffix(line.Text(), "3") {
+						wait <- true
+					} else {
+						wait <- false
+					}
+				}
+			}
+		})
+		c.conn.Privmsgf("NickServ", "STATUS %s", userInfo.Name)
+		select {
+		case result <- wait:
+			ok = result
+		case <-timeout:
+		}
+		remover.Remove()
+		if ok {
+			// This user is registered and identified with NickServ, so we want to
+			// at least cache that this user is verified by NickServ.
+			c.users.set(userInfo.Name, nil)
+		} else {
+			return false
+		}
 	}
+
+	// Cache hit (or successful check with NickServ), but we don't have an Eden user for them yet.
 	if user == nil {
 		ircUser := models.IrcUser{
 			Nickname: userInfo.Name,
@@ -126,8 +156,10 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 			}
 			return false
 		}
+		// Cache the Eden user
 		c.users.set(userInfo.Name, user)
 	}
+
 	if err := user.GetPermissions(db); err != nil {
 		if config.DebugLevel("warning") {
 			log.Printf("Error fetching user permissions: %s\n", err)
