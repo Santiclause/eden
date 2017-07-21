@@ -49,6 +49,9 @@ func (c *IrcConn) commandHook() irc.HandlerFunc {
 		message := commands.Message{
 			Content: line.Text(),
 			Public:  line.Public(),
+			Source: commands.User{
+				Name: line.Nick,
+			},
 		}
 		commands.ExecuteCommands(message, c)
 	}

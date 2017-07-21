@@ -1,3 +1,9 @@
+TODO:
+re-evaluate command context interface. context should provide communication to
+users as well, etc, but what?
+
+ROADMAP:
+
 1: IRC bot
     1) Current functionality
     2) IRC<->Discord bridge
