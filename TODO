@@ -1,6 +1,9 @@
 TODO:
 Connect to IRC. Bigger question: _abstract_ connect to stuff? Per-context basis?
 Abstract connection manager? Per-context connection manager?
+nickserv autoghost
+autorejoin
+logginnnngggggg -_-
 
 ROADMAP:
 

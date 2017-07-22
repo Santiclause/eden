@@ -16,8 +16,12 @@ import (
 type IrcConn struct {
 	// This is a map of nicknames to Eden Users. We store this to cache
 	// nickserv lookups.
-	users userMap
-	conn  *irc.Conn
+	users            userMap
+	conn             *irc.Conn
+	cfg              *irc.Config
+	autojoinChannels []string
+	nickservPassword string
+	nickservTimeout  time.Duration
 }
 
 var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
@@ -30,20 +34,24 @@ var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
 }
 
 // Connects to an IRC server with the given options.
-func Connect(server, nickname string, opts ...ircOption) *IrcConn {
+func Connect(server, nickname string, opts ...ircOption) (*IrcConn, error) {
 	cfg := irc.NewConfig(nickname)
 	cfg.Server = server
-	for _, opt := range opts {
-		opt(cfg)
-	}
 	conn := &IrcConn{
+		cfg:   cfg,
 		users: makeMap(),
-		conn:  irc.Client(cfg),
 	}
+	for _, opt := range opts {
+		opt(conn)
+	}
+	conn.conn = irc.Client(cfg)
 	for event, hook := range handlers {
 		conn.conn.HandleFunc(event, hook(conn))
 	}
-	return conn
+	if err := conn.conn.Connect(); err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 func (c *IrcConn) commandHook() irc.HandlerFunc {
@@ -54,6 +62,7 @@ func (c *IrcConn) commandHook() irc.HandlerFunc {
 			Source: commands.User{
 				Name: line.Nick,
 			},
+			Target: line.Target(),
 		}
 		commands.ExecuteCommands(message, c)
 	}
@@ -61,14 +70,18 @@ func (c *IrcConn) commandHook() irc.HandlerFunc {
 
 func (c *IrcConn) connected() irc.HandlerFunc {
 	return func(conn *irc.Conn, line *irc.Line) {
-		// TODO Send nickserv identify request
+		if c.nickservPassword != "" {
+			c.conn.Privmsgf("NickServ", "IDENTIFY %s", c.nickservPassword)
+		} else {
+			c.Autojoin()
+		}
 	}
 }
 
 func (c *IrcConn) mode() irc.HandlerFunc {
 	return func(conn *irc.Conn, line *irc.Line) {
-		if line.Args[0] == conn.Me.Nick && line.Args[1] == "+r" {
-			// TODO autojoin channels
+		if line.Args[0] == conn.Me().Nick && line.Args[1] == "+r" {
+			c.Autojoin()
 		}
 	}
 }
@@ -131,7 +144,7 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 
 	// Cache miss, we don't have any information about this user
 	if !ok {
-		timeout := time.After(config.IrcNickservTimeout)
+		timeout := time.After(c.nickservTimeout)
 		wait := make(chan bool, 1)
 		remover := c.conn.HandleFunc(irc.PRIVMSG, func(conn *irc.Conn, line *irc.Line) {
 			if line.Nick == "NickServ" && !line.Public() {
@@ -169,9 +182,7 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 		}
 		user = new(models.User)
 		if err := db.Model(&ircUser).Related(user).Error; err != nil {
-			if config.DebugLevel("warning") {
-				log.Printf("Error fetching user for ircUser: %s\n", err)
-			}
+			log.Printf("Error fetching user for ircUser: %s\n", err)
 			return false
 		}
 		// Cache the Eden user
@@ -179,9 +190,7 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 	}
 
 	if err := user.GetPermissions(db); err != nil {
-		if config.DebugLevel("warning") {
-			log.Printf("Error fetching user permissions: %s\n", err)
-		}
+		log.Printf("Error fetching user permissions: %s\n", err)
 		return false
 	}
 	for _, p := range user.Permissions {
@@ -200,34 +209,71 @@ func (c *IrcConn) SendToChannel(channel, message string) {
 	c.conn.Privmsg(channel, message)
 }
 
-type ircOption func(*irc.Config)
+// end interface definitions
+
+func (c *IrcConn) Autojoin() {
+	if c.autojoinChannels == nil {
+		return
+	}
+	for _, channel := range c.autojoinChannels {
+		c.conn.Join(channel)
+	}
+}
+
+type ircOption func(*IrcConn)
+
+func WithAutojoinChannels(channels []string) ircOption {
+	return func(c *IrcConn) {
+		c.autojoinChannels = channels
+	}
+}
 
 func WithIdent(ident string) ircOption {
-	return func(cfg *irc.Config) {
-		cfg.Me.Ident = ident
+	return func(c *IrcConn) {
+		if ident != "" {
+			c.cfg.Me.Ident = ident
+		}
 	}
 }
 
 func WithName(name string) ircOption {
-	return func(cfg *irc.Config) {
-		cfg.Me.Name = name
+	return func(c *IrcConn) {
+		if name != "" {
+			c.cfg.Me.Name = name
+		}
+	}
+}
+
+func WithNickservPassword(password string) ircOption {
+	return func(c *IrcConn) {
+		c.nickservPassword = password
+	}
+}
+
+func WithNickservTimeout(timeout time.Duration) ircOption {
+	return func(c *IrcConn) {
+		c.nickservTimeout = timeout
 	}
 }
 
 func WithQuitMessage(quitMessage string) ircOption {
-	return func(cfg *irc.Config) {
-		cfg.QuitMessage = quitMessage
+	return func(c *IrcConn) {
+		if quitMessage != "" {
+			c.cfg.QuitMessage = quitMessage
+		}
 	}
 }
 
 func WithTimeout(timeout time.Duration) ircOption {
-	return func(cfg *irc.Config) {
-		cfg.Timeout = timeout
+	return func(c *IrcConn) {
+		c.cfg.Timeout = timeout
 	}
 }
 
 func WithVersion(version string) ircOption {
-	return func(cfg *irc.Config) {
-		cfg.Version = version
+	return func(c *IrcConn) {
+		if version != "" {
+			c.cfg.Version = version
+		}
 	}
 }

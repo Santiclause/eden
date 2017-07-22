@@ -4,12 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/DavidHuie/gomigrate"
+	irc "github.com/fluffle/goirc/client"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
-	"github.com/santiclause/eden/models"
 	"github.com/santiclause/goconfig"
 )
 
@@ -17,9 +20,9 @@ type Config struct {
 	DSN                string        `env:"MYSQL_DSN" yaml:"mysql_dsn"`
 	MigrationsLocation string        `env:"MIGRATIONS_LOCATION" yaml:"migrations_location"`
 	DiscordAuthToken   string        `env:"DISCORD_AUTH_TOKEN" yaml:"discord_auth_token"`
-	DefaultPrefix      string        `env:"DEFAULT_PREFIX" yaml:"default_prefix"`
 	Version            string        `env:"VERSION" yaml:"version"`
 	IrcServers         []string      `env:"IRC_SERVERS" yaml:"irc_servers"`
+	IrcChannels        []string      `env:"IRC_CHANNELS" yaml:"irc_channels"`
 	IrcNickname        string        `env:"IRC_NICKNAME" yaml:"irc_nickname"`
 	IrcIdent           string        `env:"IRC_IDENT" yaml:"irc_ident"`
 	IrcName            string        `env:"IRC_NAME" yaml:"irc_name"`
@@ -63,26 +66,56 @@ func main() {
 		db.LogMode(true)
 	}
 
+	fmt.Println("Hello!")
+	fmt.Printf("List of servers: %v\n", config.IrcServers)
+	fmt.Printf("List of channels: %v\n", config.IrcChannels)
+
 	var servers []*IrcConn
-	for server := range config.IrcServers {
-		conn := Connect(
+	for _, server := range config.IrcServers {
+		conn, err := Connect(
 			server,
 			config.IrcNickname,
+			WithAutojoinChannels(config.IrcChannels),
 			WithIdent(config.IrcIdent),
 			WithName(config.IrcName),
+			WithNickservPassword(config.IrcNickservPass),
+			WithNickservTimeout(config.IrcNickservTimeout),
 			WithVersion(config.Version),
 			WithQuitMessage(config.IrcQuitMessage),
 		)
-		servers = append(servers, conn)
+		if err == nil {
+			servers = append(servers, conn)
+		} else {
+			log.Printf("Shit's fucked, failed to connect. %s\n", err)
+		}
 	}
 
-	var user models.User
-	err = db.First(&user).Error
-	if err != nil {
-		log.Fatal(err)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+
+	<-sig
+	wait := sync.WaitGroup{}
+	fmt.Println("Closing...")
+	for _, server := range servers {
+		if !server.conn.Connected() {
+			continue
+		}
+		wait.Add(1)
+		server.conn.Quit()
+		server.conn.HandleFunc(irc.DISCONNECTED, func(conn *irc.Conn, line *irc.Line) {
+			wait.Done()
+		})
 	}
-	err = user.GetPermissions(db)
-	fmt.Printf("%v\n", user.Permissions)
+	wait.Wait()
+	fmt.Println("Goodbye!")
+
+	// var user models.User
+	// err = db.First(&user).Error
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// err = user.GetPermissions(db)
+	// fmt.Printf("%v\n", user.Permissions)
 	// var users []models.User
 	// err = db.Find(&users).Error
 	// if err != nil {

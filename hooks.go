@@ -33,3 +33,13 @@ package main
 // type Authorizer interface {
 // 	Authorized() bool
 // }
+
+import (
+	"github.com/santiclause/eden/commands"
+)
+
+func init() {
+	commands.NewCommand("hello", func(ctx commands.CommandContext, msg commands.Message, args ...string) {
+		ctx.SendToChannel(msg.Target, "Hello world!")
+	})
+}

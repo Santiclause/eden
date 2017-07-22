@@ -133,6 +133,7 @@ type Message struct {
 	Content string
 	Source  User
 	Public  bool
+	Target  string
 }
 
 type User struct {
