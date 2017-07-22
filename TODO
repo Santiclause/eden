@@ -1,6 +1,6 @@
 TODO:
-re-evaluate command context interface. context should provide communication to
-users as well, etc, but what?
+Connect to IRC. Bigger question: _abstract_ connect to stuff? Per-context basis?
+Abstract connection manager? Per-context connection manager?
 
 ROADMAP:
 

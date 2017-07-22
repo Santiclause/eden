@@ -127,7 +127,7 @@ func NewCommand(command string, function ExecuteFunc, opts ...commandOption) (*C
 
 type commandOption func(*Command) error
 
-type ExecuteFunc func(Message, ...string)
+type ExecuteFunc func(CommandContext, Message, ...string)
 
 type Message struct {
 	Content string
@@ -188,4 +188,6 @@ func WithCommandFunc(commandFunc func(Message) string) commandOption {
 type CommandContext interface {
 	Execute(ExecuteFunc, Message, ...string)
 	Authorize(User, models.Permission) bool
+	SendToUser(User, string)
+	SendToChannel(string, string)
 }

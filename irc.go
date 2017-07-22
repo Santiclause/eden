@@ -108,7 +108,7 @@ func (m *userMap) remove(key string) {
 // CommandContext interface methods
 
 func (c *IrcConn) Execute(f commands.ExecuteFunc, message commands.Message, args ...string) {
-	f(message, args...)
+	f(c, message, args...)
 }
 
 func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission) bool {
@@ -175,6 +175,14 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 		}
 	}
 	return false
+}
+
+func (c *IrcConn) SendToUser(userInfo commands.User, message string) {
+	c.conn.Privmsg(userInfo.Name, message)
+}
+
+func (c *IrcConn) SendToChannel(channel, message string) {
+	c.conn.Privmsg(channel, message)
 }
 
 type ircOption func(*irc.Config)
