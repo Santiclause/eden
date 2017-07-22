@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,8 +107,8 @@ func (m *userMap) remove(key string) {
 
 // CommandContext interface methods
 
-func (c *IrcConn) Execute(f commands.ExecuteFunc, message commands.Message, args []string) {
-	f(message, args)
+func (c *IrcConn) Execute(f commands.ExecuteFunc, message commands.Message, args ...string) {
+	f(message, args...)
 }
 
 func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission) bool {
@@ -130,8 +131,7 @@ func (c *IrcConn) Authorize(userInfo commands.User, permission models.Permission
 		})
 		c.conn.Privmsgf("NickServ", "STATUS %s", userInfo.Name)
 		select {
-		case result <- wait:
-			ok = result
+		case ok = <-wait:
 		case <-timeout:
 		}
 		remover.Remove()

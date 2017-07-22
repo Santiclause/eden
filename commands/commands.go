@@ -42,7 +42,7 @@ func (command *Command) Execute(message Message, context CommandContext) {
 	if command.permission != nil && !context.Authorize(message.Source, *command.permission) {
 		return
 	}
-	context.Execute(command.function, message, args)
+	context.Execute(command.function, message, args...)
 }
 
 func ExecuteCommands(message Message, context CommandContext) {
@@ -127,7 +127,7 @@ func NewCommand(command string, function ExecuteFunc, opts ...commandOption) (*C
 
 type commandOption func(*Command) error
 
-type ExecuteFunc func(Message, []string)
+type ExecuteFunc func(Message, ...string)
 
 type Message struct {
 	Content string
@@ -186,6 +186,6 @@ func WithCommandFunc(commandFunc func(Message) string) commandOption {
 }
 
 type CommandContext interface {
-	Execute(ExecuteFunc, Message, []string)
+	Execute(ExecuteFunc, Message, ...string)
 	Authorize(User, models.Permission) bool
 }
