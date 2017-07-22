@@ -37,13 +37,6 @@ var (
 	db *gorm.DB
 )
 
-// func getUserPermissions(userID int) []commands.Permission {
-// 	db.Query(`
-// 	SELECT permission.name
-// 	FROM
-// 	`, userID)
-// }
-
 func main() {
 	config.SetFilename("config.yaml")
 	goconfig.Load(&config)
@@ -68,6 +61,19 @@ func main() {
 
 	if config.DebugLevel("verbose") {
 		db.LogMode(true)
+	}
+
+	var servers []*IrcConn
+	for server := range config.IrcServers {
+		conn := Connect(
+			server,
+			config.IrcNickname,
+			WithIdent(config.IrcIdent),
+			WithName(config.IrcName),
+			WithVersion(config.Version),
+			WithQuitMessage(config.IrcQuitMessage),
+		)
+		servers = append(servers, conn)
 	}
 
 	var user models.User

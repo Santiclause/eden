@@ -21,10 +21,12 @@ type IrcConn struct {
 }
 
 var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
-	irc.QUIT:    (*IrcConn).quit,
-	irc.PART:    (*IrcConn).part,
-	irc.NICK:    (*IrcConn).nick,
-	irc.PRIVMSG: (*IrcConn).commandHook,
+	irc.CONNECTED: (*IrcConn).connected,
+	irc.MODE:      (*IrcConn).mode,
+	irc.NICK:      (*IrcConn).nick,
+	irc.PART:      (*IrcConn).part,
+	irc.PRIVMSG:   (*IrcConn).commandHook,
+	irc.QUIT:      (*IrcConn).quit,
 }
 
 // Connects to an IRC server with the given options.
@@ -54,6 +56,20 @@ func (c *IrcConn) commandHook() irc.HandlerFunc {
 			},
 		}
 		commands.ExecuteCommands(message, c)
+	}
+}
+
+func (c *IrcConn) connected() irc.HandlerFunc {
+	return func(conn *irc.Conn, line *irc.Line) {
+		// TODO Send nickserv identify request
+	}
+}
+
+func (c *IrcConn) mode() irc.HandlerFunc {
+	return func(conn *irc.Conn, line *irc.Line) {
+		if line.Args[0] == conn.Me.Nick && line.Args[1] == "+r" {
+			// TODO autojoin channels
+		}
 	}
 }
 
