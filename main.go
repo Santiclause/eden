@@ -34,7 +34,6 @@ var (
 		MigrationsLocation: "migrations",
 		IrcNickservTimeout: 15 * time.Second,
 	}
-	// db *sql.DB
 	db *gorm.DB
 )
 
@@ -66,7 +65,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db.LogMode(true)
+
+	if config.DebugLevel("verbose") {
+		db.LogMode(true)
+	}
+
 	var user models.User
 	err = db.First(&user).Error
 	if err != nil {

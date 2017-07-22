@@ -27,11 +27,10 @@ var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
 	irc.PRIVMSG: (*IrcConn).commandHook,
 }
 
-func Connect(server string, opts ...ircOption) *IrcConn {
-	cfg := irc.NewConfig(config.IrcNickname, config.IrcIdent, config.IrcName)
+// Connects to an IRC server with the given options.
+func Connect(server, nickname string, opts ...ircOption) *IrcConn {
+	cfg := irc.NewConfig(nickname)
 	cfg.Server = server
-	cfg.Version = config.Version
-	cfg.QuitMessage = config.IrcQuitMessage
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -187,8 +186,32 @@ func (c *IrcConn) SendToChannel(channel, message string) {
 
 type ircOption func(*irc.Config)
 
-func WithNickname(nickname string) ircOption {
+func WithIdent(ident string) ircOption {
 	return func(cfg *irc.Config) {
-		cfg.Me.Nick = nickname
+		cfg.Me.Ident = ident
+	}
+}
+
+func WithName(name string) ircOption {
+	return func(cfg *irc.Config) {
+		cfg.Me.Name = name
+	}
+}
+
+func WithQuitMessage(quitMessage string) ircOption {
+	return func(cfg *irc.Config) {
+		cfg.QuitMessage = quitMessage
+	}
+}
+
+func WithTimeout(timeout time.Duration) ircOption {
+	return func(cfg *irc.Config) {
+		cfg.Timeout = timeout
+	}
+}
+
+func WithVersion(version string) ircOption {
+	return func(cfg *irc.Config) {
+		cfg.Version = version
 	}
 }
