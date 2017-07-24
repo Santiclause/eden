@@ -5,6 +5,22 @@ nickserv autoghost
 autorejoin
 logginnnngggggg -_-
 
+hooks:
+.np
+    np loop
+    np on channel join
+        generic "on join"? generic events?
+.peak
+.report [<reason>]
+.quarantine
+.fave [last]
+.faves
+.dj [<new dj>]
+    2nd functionality maybe should change
+.thread [<new thread>]
+.skip
+.commands/.help
+
 ROADMAP:
 
 1: IRC bot

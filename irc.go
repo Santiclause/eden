@@ -20,17 +20,19 @@ type IrcConn struct {
 	conn             *irc.Conn
 	cfg              *irc.Config
 	autojoinChannels []string
+	desiredNickname  string
 	nickservPassword string
 	nickservTimeout  time.Duration
 }
 
 var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
-	irc.CONNECTED: (*IrcConn).connected,
-	irc.MODE:      (*IrcConn).mode,
-	irc.NICK:      (*IrcConn).nick,
-	irc.PART:      (*IrcConn).part,
-	irc.PRIVMSG:   (*IrcConn).commandHook,
-	irc.QUIT:      (*IrcConn).quit,
+	irc.CONNECTED:    (*IrcConn).connected,
+	irc.DISCONNECTED: (*IrcConn).disconnected,
+	irc.MODE:         (*IrcConn).mode,
+	irc.NICK:         (*IrcConn).nick,
+	irc.PART:         (*IrcConn).part,
+	irc.PRIVMSG:      (*IrcConn).commandHook,
+	irc.QUIT:         (*IrcConn).quit,
 }
 
 // Connects to an IRC server with the given options.
@@ -38,8 +40,9 @@ func Connect(server, nickname string, opts ...ircOption) (*IrcConn, error) {
 	cfg := irc.NewConfig(nickname)
 	cfg.Server = server
 	conn := &IrcConn{
-		cfg:   cfg,
-		users: makeMap(),
+		cfg:             cfg,
+		users:           makeMap(),
+		desiredNickname: nickname,
 	}
 	for _, opt := range opts {
 		opt(conn)
@@ -71,11 +74,42 @@ func (c *IrcConn) commandHook() irc.HandlerFunc {
 func (c *IrcConn) connected() irc.HandlerFunc {
 	return func(conn *irc.Conn, line *irc.Line) {
 		if c.nickservPassword != "" {
-			c.conn.Privmsgf("NickServ", "IDENTIFY %s", c.nickservPassword)
+			if conn.Me().Nick != c.desiredNickname {
+				time.AfterFunc(1*time.Second, func() {
+					c.ghost()
+				})
+			} else {
+				conn.Privmsgf("NickServ", "IDENTIFY %s", c.nickservPassword)
+			}
 		} else {
 			c.Autojoin()
 		}
 	}
+}
+
+func (c *IrcConn) disconnected() irc.HandlerFunc {
+	return func(conn *irc.Conn, line *irc.Line) {
+		// conn.Connect()
+	}
+}
+
+func (c *IrcConn) ghost() {
+	c.conn.Privmsgf("NickServ", "RECOVER %s %s", c.desiredNickname, c.nickservPassword)
+	var remover irc.Remover
+	remover = c.conn.HandleFunc(irc.NOTICE, func(conn *irc.Conn, line *irc.Line) {
+		if line.Target() == "NickServ" {
+			if line.Text() == "User claiming your nick has been killed." {
+				conn.Privmsgf("NickServ", "RELEASE %s %s", c.desiredNickname, c.nickservPassword)
+			} else if line.Text() == "Services' hold on your nick has been released." {
+				conn.Nick(c.desiredNickname)
+				conn.Privmsgf("NickServ", "IDENTIFY %s", c.nickservPassword)
+				go (func() {
+					// This is so that we can call it asynchronously to avoid a runLoop deadlock.
+					remover.Remove()
+				})()
+			}
+		}
+	})
 }
 
 func (c *IrcConn) mode() irc.HandlerFunc {
