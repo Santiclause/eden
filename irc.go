@@ -23,6 +23,7 @@ type IrcConn struct {
 	desiredNickname  string
 	nickservPassword string
 	nickservTimeout  time.Duration
+	removers         map[string]irc.Remover
 }
 
 var handlers = map[string]func(*IrcConn) irc.HandlerFunc{
@@ -48,13 +49,28 @@ func Connect(server, nickname string, opts ...ircOption) (*IrcConn, error) {
 		opt(conn)
 	}
 	conn.conn = irc.Client(cfg)
+	conn.removers = make(map[string]irc.Remover)
 	for event, hook := range handlers {
-		conn.conn.HandleFunc(event, hook(conn))
+		// We want to store removers for the internal handlers in case we need to remove them, i.e during connection tear-down.
+		conn.removers[event] = conn.conn.HandleFunc(event, hook(conn))
 	}
 	if err := conn.conn.Connect(); err != nil {
 		return nil, err
 	}
 	return conn, nil
+}
+
+func (c *IrcConn) Close() chan struct{} {
+	done := make(chan struct{})
+	// We want to remove the reconnect-on-disconnect hook here.
+	c.removers[irc.DISCONNECTED].Remove()
+	c.conn.Quit()
+	c.conn.HandleFunc(irc.DISCONNECTED, func(conn *irc.Conn, line *irc.Line) {
+		// Signal completion of connection
+		close(done)
+	})
+	// Let the calling function decide how to deal with possible failure.
+	return done
 }
 
 func (c *IrcConn) commandHook() irc.HandlerFunc {
@@ -89,7 +105,7 @@ func (c *IrcConn) connected() irc.HandlerFunc {
 
 func (c *IrcConn) disconnected() irc.HandlerFunc {
 	return func(conn *irc.Conn, line *irc.Line) {
-		// conn.Connect()
+		conn.Connect()
 	}
 }
 
@@ -103,10 +119,7 @@ func (c *IrcConn) ghost() {
 			} else if line.Text() == "Services' hold on your nick has been released." {
 				conn.Nick(c.desiredNickname)
 				conn.Privmsgf("NickServ", "IDENTIFY %s", c.nickservPassword)
-				go (func() {
-					// This is so that we can call it asynchronously to avoid a runLoop deadlock.
-					remover.Remove()
-				})()
+				remover.Remove()
 			}
 		}
 	})

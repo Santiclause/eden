@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/DavidHuie/gomigrate"
-	irc "github.com/fluffle/goirc/client"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/santiclause/goconfig"
@@ -101,10 +100,15 @@ func main() {
 			continue
 		}
 		wait.Add(1)
-		server.conn.Quit()
-		server.conn.HandleFunc(irc.DISCONNECTED, func(conn *irc.Conn, line *irc.Line) {
-			wait.Done()
-		})
+		go (func() {
+			timeout := time.After(15 * time.Second)
+			select {
+			case <-server.Close():
+				wait.Done()
+			case <-timeout:
+				wait.Done()
+			}
+		})()
 	}
 	wait.Wait()
 	fmt.Println("Goodbye!")
